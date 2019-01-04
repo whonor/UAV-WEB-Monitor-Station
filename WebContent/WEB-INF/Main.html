@@ -1,0 +1,2141 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no, width=device-width">
+    <title>***无人飞行器监控系统</title> 
+    <script src="http://webapi.amap.com/maps?v=1.4.2&key=7ad6838d690504e95fba48571cf18060&&&plugin=AMap.Scale,AMap.OverView,AMap.ToolBar,AMap.MouseTool"></script>
+    <link rel="stylesheet" href="http://cache.amap.com/lbs/static/main1119.css"/>
+    <script src="http://webapi.amap.com/ui/1.0/main.js?v=1.0.11"></script>
+    <script src="http://code.jquery.com/jquery-1.11.1.min.js"></script>
+    <link rel="stylesheet" href="Index/CSS/style01.css" type="text/css"/>
+    <script type="text/javascript" src="Index/JS/json.js"></script>
+	<script type="text/javascript" src="Index/JS/init.js"></script>
+	<script type="text/javascript" src="Index/JS/dialog.js"></script>
+</head>
+<body>
+
+<div id="mapContainer"></div> <!--地图容器-->
+
+<div id="data"></div>
+<!--<div id="tip">
+    <b>请输入关键字：</b>
+    <input type="text" id="keyword" name="keyword" value="" onkeydown='keydown(event)' style="width: 95%;"/>
+    <div id="result1" name="result1"></div>
+</div>-->
+
+<div id="button-group">
+    <input type="button" class="button" value="面积测绘" id="polygon"/>
+    <input type="button" class="button" value="退出测绘" id="exit"/>
+    <input type="button" class="button" value="一键启动" id="start" onclick="Dialog()"/>
+</div>
+<div id="pos">
+    <b>鼠标左键在地图上单击获取坐标</b>
+    <br><div>>X：<input type="text" id="lngX" name="lngX" value=""/>&nbsp;Y：<input type="text" id="latY" name="latY" value=""/></div>
+</div>
+<!--设置工具条包括：比例尺、工具条、工具条方向盘、工具条标尺、显示鹰眼、展开鹰眼 -->
+<div class='button-group' >
+    <input type="checkbox" onclick="toggleScale(this)"/>比例尺
+    <input type="checkbox" id="toolbar" onclick="toggleToolBar(this)"/>工具条
+    <input type="checkbox" id="toolbarDirection" disabled onclick="toggleToolBarDirection(this)"/>工具条方向盘
+    <input type="checkbox" id="toolbarRuler" disabled onclick="toggleToolBarRuler(this)"/>工具条标尺
+    <input type="checkbox" id="overview" onclick="toggleOverViewShow(this)"/>显示鹰眼
+    <input type="checkbox" id="overviewOpen" disabled onclick="toggleOverViewOpen(this)"/>展开鹰眼
+</div>
+<script type="text/javascript">
+<!--加载地图-->
+var scale = new AMap.Scale({
+    visible: false
+}),
+toolBar = new AMap.ToolBar({
+    visible: false
+}),
+overView = new AMap.OverView({
+    visible: false
+});
+var windowsArr = [];
+mapObj = new AMap.Map("mapContainer", {
+	
+	layers: [new AMap.TileLayer.Satellite()],//显示卫星图层
+	resizeEnable: true,
+   //zoom:19,
+    expandZoomRange:true,
+    zooms:[3, 19]
+    //center: [116.39,39.9]//
+});
+mapObj.setCity("烟台市");
+mapObj.addControl(scale);
+mapObj.addControl(toolBar);
+mapObj.addControl(overView);
+//定制鼠标操作事件——面积测量
+var mouseTool = new AMap.MouseTool(mapObj);
+AMap.event.addDomListener(document.getElementById('polygon'), 'click', function() {
+	mouseTool.measureArea();
+}, false);
+AMap.event.addDomListener(document.getElementById('exit'), 'click', function() {
+    mouseTool.close(true);
+}, false);
+  //先检验能不能运行起来，能不能连上，自动推送数据，先不做数据显示
+  //客户端就会与服务器进行连接
+  var webSocket = new WebSocket("ws://localhost:8080/WebSocketDemo/SendData");
+
+  //连接失败时回调
+  webSocket.onerror = function (event) {
+	  console.log("error");
+  };
+
+  //连接成功时回调，真的会执行括号中的代码！
+  webSocket.onopen = function (event) {
+	  console.log("connection successful");//
+      
+  };
+
+  webSocket.onmessage = function (event) {//接收服务器数据并做出处理
+      cs = true;
+      var serverdata = event.data;
+      makeDataOnWeb(serverdata);//收到后台数据库中的字符串数据
+		//alert(serverdata);
+      
+	};
+  webSocket.onclose = function (event) {
+      //makeDataOnWeb("connection close");
+      console.log("connection close");
+  };
+
+  var historyVal;
+  function makeDataOnWeb(data) {
+
+      var a = data;
+      var divNode = document.getElementById("data");
+      var liNode = document.createElement("li");///动态创建<li>标签
+      liNode.innerHTML = a;//把数据写入一行标签
+      //alert(liNode.innerHTML);
+      divNode.appendChild(liNode);
+      
+	  if(cs == true){
+		  var x = 0;
+		arr = document.getElementsByTagName("li");//获取所有li放到数组
+		if(x<arr.length){
+			pointList.push(JSON.parse(liNode.innerHTML));//获取HTML元素数据，转换成JSON，存入数组
+			x++;
+		}
+		
+	  //===============================================================	  
+	/*	  //测试调试JSON数据用
+	  var temp = "";
+	  for(var i in pointList){//用javascript的for/in循环遍历对象的属性
+	  temp += i+":"+pointList[i];
+	  }
+	  */
+	  //================================================================
+	  cs = false;
+	  x = 0;
+	  }
+  }
+  
+//此处需要延时执行函数，否则后面程序无法执行
+//加入提示信息，可顺利执行
+  alert('欢迎使用云都鹰眼无人机监控系统');
+
+//每隔一秒获取li的标签数量
+setInterval(function getLi(){
+	curVal = $('#data li').length;
+},1000);
+
+//加载完成全部页面后，动态检查li标签是否有变化，有变化则移动marker，并增加路径
+$(document).ready(function(){
+	historyVal = $('#data li').length;
+		init();
+		setInterval(function() {
+		if (curVal != historyVal) {//检测到不相同
+			historyVal = curVal;
+			var Lng;
+			var Lat;
+		  	var XY = pointList.pop();
+		  	//alert(XY);
+		  	Lng = XY.lng;
+		  	Lat = XY.lat;
+		  	var GXY = GPS.gcj_encrypt(Lat, Lng);
+		  	var Glng = GXY.lng;
+		  	var Glat = GXY.lat;
+		  	//alert(GXY);	  	
+		  	if(XY.ID == "1"){
+		  		marker1.hide();
+		  		marker1 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "1号机飞行中"
+				  });
+		  		marker1.setMap(mapObj);
+		  		//polyline.setMap(mapObj);
+		  		lineArr.push(new AMap.LngLat(Glng, Glat));
+		  		polyline.getPath(lineArr);//获取变换后的坐标数组
+			  	move();//点标记移动			
+				marker1.on('moving', function (e) {//设置点轨迹
+			  	polyline.setPath(e.passedPath);//设置路径
+				});
+		  	}
+		  	if(XY.ID == "2"){
+		  		marker2.hide();
+		  		marker2 = new AMap.Marker({//飞机2点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "2号机飞行中"
+				  });
+		  		marker2.setMap(mapObj);
+		  		lineArr02.push(new AMap.LngLat(Glng, Glat));
+			  	polyline02.getPath(lineArr02);///获取变换后的坐标数组
+			  	move02();	  	//点标记移动
+				marker2.on('moving', function (e) {//设置点轨迹
+			  	polyline02.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "3"){
+		  		marker3.hide();
+		  		marker3 = new AMap.Marker({//飞机3点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "3号机飞行中"
+				  });
+		  		marker3.setMap(mapObj);
+		  		lineArr03.push(new AMap.LngLat(Glng, Glat));
+			  	polyline03.getPath(lineArr03);///获取变换后的坐标数组
+			  	move03();	  	//点标记移动
+				marker3.on('moving', function (e) {//设置点轨迹
+			  	polyline03.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "4"){
+		  		marker4.hide();
+		  		marker4 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "4号机飞行中"
+				  });
+		  		marker4.setMap(mapObj);
+		  		lineArr04.push(new AMap.LngLat(Glng, Glat));
+			  	polyline04.getPath(lineArr04);///获取变换后的坐标数组
+			  	move04();	  	//点标记移动
+				marker4.on('moving', function (e) {//设置点轨迹
+			  	polyline04.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "5"){
+		  		marker5.hide();
+		  		marker5 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "5号机飞行中"
+				  });
+		  		marker5.setMap(mapObj);
+		  		lineArr05.push(new AMap.LngLat(Glng, Glat));
+			  	polyline05.getPath(lineArr05);///获取变换后的坐标数组
+			  	move05();	  	//点标记移动
+				marker5.on('moving', function (e) {//设置点轨迹
+			  	polyline05.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "6"){
+		  		marker6.hide();
+		  		marker6 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "6号机飞行中"
+				  });
+		  		marker6.setMap(mapObj);
+		  		lineArr06.push(new AMap.LngLat(Glng, Glat));
+			  	polyline06.getPath(lineArr06);///获取变换后的坐标数组
+			  	move06();	  	//点标记移动
+				marker6.on('moving', function (e) {//设置点轨迹
+			  	polyline06.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "7"){
+		  		marker7.hide();
+		  		marker7 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "7号机飞行中"
+				  });
+		  		marker7.setMap(mapObj);
+		  		lineArr07.push(new AMap.LngLat(Glng, Glat));
+			  	polyline07.getPath(lineArr07);///获取变换后的坐标数组
+			  	move07();	  	//点标记移动
+				marker7.on('moving', function (e) {//设置点轨迹
+			  	polyline07.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "8"){
+		  		marker8.hide();
+		  		marker8 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "8号机飞行中"
+				  });
+		  		marker8.setMap(mapObj);
+		  		lineArr08.push(new AMap.LngLat(Glng, Glat));
+			  	polyline08.getPath(lineArr08);///获取变换后的坐标数组
+			  	move08();	  	//点标记移动
+				marker8.on('moving', function (e) {//设置点轨迹
+			  	polyline08.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "9"){
+		  		marker9.hide();
+		  		marker9 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "9号机飞行中"
+				  });
+		  		marker9.setMap(mapObj);
+		  		lineArr09.push(new AMap.LngLat(Glng, Glat));
+			  	polyline09.getPath(lineArr09);///获取变换后的坐标数组
+			  	move09();//点标记移动
+				marker9.on('moving', function (e) {//设置点轨迹
+			  	polyline09.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "10"){
+		  		marker10.hide();
+		  		marker10 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "10号机飞行中"
+				  });
+		  		marker10.setMap(mapObj);
+		  		lineArr10.push(new AMap.LngLat(Glng, Glat));
+			  	polyline10.getPath(lineArr10);///获取变换后的坐标数组
+			  	move10();	  	//点标记移动
+				marker10.on('moving', function (e) {//设置点轨迹
+			  	polyline10.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "11"){
+		  		marker11.hide();
+		  		marker11 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "11号机飞行中"
+				  });
+		  		marker11.setMap(mapObj);
+		  		lineArr11.push(new AMap.LngLat(Glng, Glat));
+			  	polyline11.getPath(lineArr11);///获取变换后的坐标数组
+			  	move11();	  	//点标记移动
+				marker11.on('moving', function (e) {//设置点轨迹
+			  	polyline11.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "12"){
+		  		marker12.hide();
+		  		marker12 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "12号机飞行中"
+				  });
+		  		marker12.setMap(mapObj);
+		  		lineArr12.push(new AMap.LngLat(Glng, Glat));
+			  	polyline12.getPath(lineArr12);///获取变换后的坐标数组
+			  	move12();	  	//点标记移动
+				marker12.on('moving', function (e) {//设置点轨迹
+			  	polyline12.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "13"){
+		  		marker13.hide();
+		  		marker13 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "13号机飞行中"
+				  });
+		  		marker13.setMap(mapObj);
+		  		lineArr13.push(new AMap.LngLat(Glng, Glat));
+			  	polyline13.getPath(lineArr13);///获取变换后的坐标数组
+			  	move13();	  	//点标记移动
+				marker13.on('moving', function (e) {//设置点轨迹
+			  	polyline13.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "14"){
+		  		marker14.hide();
+		  		marker14 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "14号机飞行中"
+				  });
+		  		marker14.setMap(mapObj);
+		  		lineArr14.push(new AMap.LngLat(Glng, Glat));
+			  	polyline14.getPath(lineArr14);///获取变换后的坐标数组
+			  	move14();	  	//点标记移动
+				marker14.on('moving', function (e) {//设置点轨迹
+			  	polyline14.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "15"){
+		  		marker15.hide();
+		  		marker15 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "15号机飞行中"
+				  });
+		  		marker15.setMap(mapObj);
+		  		lineArr15.push(new AMap.LngLat(Glng, Glat));
+			  	polyline15.getPath(lineArr15);///获取变换后的坐标数组
+			  	move15();	  	//点标记移动
+				marker15.on('moving', function (e) {//设置点轨迹
+			  	polyline15.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "16"){
+		  		marker16.hide();
+		  		marker16 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "16号机飞行中"
+				  });
+		  		marker16.setMap(mapObj);
+		  		lineArr16.push(new AMap.LngLat(Glng, Glat));
+			  	polyline16.getPath(lineArr16);///获取变换后的坐标数组
+			  	move16();	  	//点标记移动
+				marker16.on('moving', function (e) {//设置点轨迹
+			  	polyline16.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "17"){
+		  		marker17.hide();
+		  		marker17 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "17号机飞行中"
+				  });
+		  		marker17.setMap(mapObj);
+		  		lineArr17.push(new AMap.LngLat(Glng, Glat));
+			  	polyline17.getPath(lineArr17);///获取变换后的坐标数组
+			  	move17();	  	//点标记移动
+				marker17.on('moving', function (e) {//设置点轨迹
+			  	polyline17.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "18"){
+		  		marker18.hide();
+		  		marker18 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "18号机飞行中"
+				  });
+		  		marker18.setMap(mapObj);
+		  		lineArr18.push(new AMap.LngLat(Glng, Glat));
+			  	polyline18.getPath(lineArr18);///获取变换后的坐标数组
+			  	move18();	  	//点标记移动
+				marker18.on('moving', function (e) {//设置点轨迹
+			  	polyline18.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "19"){
+		  		marker19.hide();
+		  		marker19 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "19号机飞行中"
+				  });
+		  		marker19.setMap(mapObj);
+		  		lineArr19.push(new AMap.LngLat(Glng, Glat));
+			  	polyline19.getPath(lineArr19);///获取变换后的坐标数组
+			  	move19();	  	//点标记移动
+				marker19.on('moving', function (e) {//设置点轨迹
+			  	polyline19.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "20"){
+		  		marker20.hide();
+		  		marker20 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "20号机飞行中"
+				  });
+		  		marker20.setMap(mapObj);
+		  		lineArr20.push(new AMap.LngLat(Glng, Glat));
+			  	polyline20.getPath(lineArr20);///获取变换后的坐标数组
+			  	move20();	  	//点标记移动
+				marker20.on('moving', function (e) {//设置点轨迹
+			  	polyline20.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "21"){
+		  		marker21.hide();
+		  		marker21 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "21号机飞行中"
+				  });
+		  		marker21.setMap(mapObj);
+		  		lineArr21.push(new AMap.LngLat(Glng, Glat));
+			  	polyline21.getPath(lineArr21);///获取变换后的坐标数组
+			  	move21();	  	//点标记移动
+				marker21.on('moving', function (e) {//设置点轨迹
+			  	polyline21.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "22"){
+		  		marker22.hide();
+		  		marker22 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "22号机飞行中"
+				  });
+		  		marker22.setMap(mapObj);
+		  		lineArr22.push(new AMap.LngLat(Glng, Glat));
+			  	polyline22.getPath(lineArr22);///获取变换后的坐标数组
+			  	move22();	  	//点标记移动
+				marker22.on('moving', function (e) {//设置点轨迹
+			  	polyline22.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "23"){
+		  		marker23.hide();
+		  		marker23 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "23号机飞行中"
+				  });
+		  		marker23.setMap(mapObj);
+		  		lineArr23.push(new AMap.LngLat(Glng, Glat));
+			  	polyline23.getPath(lineArr23);///获取变换后的坐标数组
+			  	move23();	  	//点标记移动
+				marker23.on('moving', function (e) {//设置点轨迹
+			  	polyline23.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "24"){
+		  		marker24.hide();
+		  		marker24 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "24号机飞行中"
+				  });
+		  		marker24.setMap(mapObj);
+		  		lineArr24.push(new AMap.LngLat(Glng, Glat));
+			  	polyline24.getPath(lineArr24);///获取变换后的坐标数组
+			  	move24();	  	//点标记移动
+				marker24.on('moving', function (e) {//设置点轨迹
+			  	polyline24.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "25"){
+		  		marker25.hide();
+		  		marker25 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "25号机飞行中"
+				  });
+		  		marker25.setMap(mapObj);
+		  		lineArr25.push(new AMap.LngLat(Glng, Glat));
+			  	polyline25.getPath(lineArr25);///获取变换后的坐标数组
+			  	move25();	  	//点标记移动
+				marker25.on('moving', function (e) {//设置点轨迹
+			  	polyline25.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "26"){
+		  		marker26.hide();
+		  		marker26 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "26号机飞行中"
+				  });
+		  		marker26.setMap(mapObj);
+		  		lineArr26.push(new AMap.LngLat(Glng, Glat));
+			  	polyline26.getPath(lineArr26);///获取变换后的坐标数组
+			  	move26();	  	//点标记移动
+				marker26.on('moving', function (e) {//设置点轨迹
+			  	polyline26.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "27"){
+		  		marker27.hide();
+		  		marker27 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "27号机飞行中"
+				  });
+		  		marker27.setMap(mapObj);
+		  		lineArr27.push(new AMap.LngLat(Glng, Glat));
+			  	polyline27.getPath(lineArr27);///获取变换后的坐标数组
+			  	move27();	  	//点标记移动
+				marker27.on('moving', function (e) {//设置点轨迹
+			  	polyline27.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "28"){
+		  		marker28.hide();
+		  		marker28 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "28号机飞行中"
+				  });
+		  		marker28.setMap(mapObj);
+		  		lineArr28.push(new AMap.LngLat(Glng, Glat));
+			  	polyline28.getPath(lineArr28);///获取变换后的坐标数组
+			  	move28();	  	//点标记移动
+				marker28.on('moving', function (e) {//设置点轨迹
+			  	polyline28.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "29"){
+		  		marker29.hide();
+		  		marker29 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "29号机飞行中"
+				  });
+		  		marker29.setMap(mapObj);
+		  		lineArr29.push(new AMap.LngLat(Glng, Glat));
+			  	polyline29.getPath(lineArr29);///获取变换后的坐标数组
+			  	move29();	  	//点标记移动
+				marker29.on('moving', function (e) {//设置点轨迹
+			  	polyline29.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "30"){
+		  		marker30.hide();
+		  		marker30 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "30号机飞行中"
+				  });
+		  		marker30.setMap(mapObj);
+		  		lineArr30.push(new AMap.LngLat(Glng, Glat));
+			  	polyline30.getPath(lineArr30);///获取变换后的坐标数组
+			  	move30();	  	//点标记移动
+				marker30.on('moving', function (e) {//设置点轨迹
+			  	polyline30.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "31"){
+		  		marker31.hide();
+		  		marker31 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "31号机飞行中"
+				  });
+		  		marker31.setMap(mapObj);
+		  		lineArr31.push(new AMap.LngLat(Glng, Glat));
+			  	polyline31.getPath(lineArr31);///获取变换后的坐标数组
+			  	move31();	  	//点标记移动
+				marker31.on('moving', function (e) {//设置点轨迹
+			  	polyline31.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "32"){
+		  		marker32.hide();
+		  		marker32 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "32号机飞行中"
+				  });
+		  		marker32.setMap(mapObj);
+		  		lineArr32.push(new AMap.LngLat(Glng, Glat));
+			  	polyline32.getPath(lineArr32);///获取变换后的坐标数组
+			  	move32();	  	//点标记移动
+				marker32.on('moving', function (e) {//设置点轨迹
+			  	polyline32.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "33"){
+		  		marker33.hide();
+		  		marker33 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "33号机飞行中"
+				  });
+		  		marker33.setMap(mapObj);
+		  		lineArr33.push(new AMap.LngLat(Glng, Glat));
+			  	polyline33.getPath(lineArr33);///获取变换后的坐标数组
+			  	move33();	  	//点标记移动
+				marker33.on('moving', function (e) {//设置点轨迹
+			  	polyline33.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "34"){
+		  		marker34.hide();
+		  		marker34 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "34号机飞行中"
+				  });
+		  		marker34.setMap(mapObj);
+		  		lineArr34.push(new AMap.LngLat(Glng, Glat));
+			  	polyline34.getPath(lineArr34);///获取变换后的坐标数组
+			  	move34();	  	//点标记移动
+				marker34.on('moving', function (e) {//设置点轨迹
+			  	polyline34.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "35"){
+		  		marker35.hide();
+		  		marker35 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "35号机飞行中"
+				  });
+		  		marker35.setMap(mapObj);
+		  		lineArr35.push(new AMap.LngLat(Glng, Glat));
+			  	polyline35.getPath(lineArr35);///获取变换后的坐标数组
+			  	move35();	  	//点标记移动
+				marker35.on('moving', function (e) {//设置点轨迹
+			  	polyline35.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "36"){
+		  		marker36.hide();
+		  		marker36 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "36号机飞行中"
+				  });
+		  		marker36.setMap(mapObj);
+		  		lineArr36.push(new AMap.LngLat(Glng, Glat));
+			  	polyline36.getPath(lineArr36);///获取变换后的坐标数组
+			  	move36();	  	//点标记移动
+				marker36.on('moving', function (e) {//设置点轨迹
+			  	polyline36.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "37"){
+		  		marker37.hide();
+		  		marker37 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "37号机飞行中"
+				  });
+		  		marker37.setMap(mapObj);
+		  		lineArr37.push(new AMap.LngLat(Glng, Glat));
+			  	polyline37.getPath(lineArr37);///获取变换后的坐标数组
+			  	move37();	  	//点标记移动
+				marker37.on('moving', function (e) {//设置点轨迹
+			  	polyline37.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "38"){
+		  		marker38.hide();
+		  		marker38 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "38号机飞行中"
+				  });
+		  		marker38.setMap(mapObj);
+		  		lineArr38.push(new AMap.LngLat(Glng, Glat));
+			  	polyline38.getPath(lineArr30);///获取变换后的坐标数组
+			  	move38();	  	//点标记移动
+				marker38.on('moving', function (e) {//设置点轨迹
+			  	polyline38.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "39"){
+		  		marker39.hide();
+		  		marker39 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "39号机飞行中"
+				  });
+		  		marker39.setMap(mapObj);
+		  		lineArr39.push(new AMap.LngLat(Glng, Glat));
+			  	polyline39.getPath(lineArr39);///获取变换后的坐标数组
+			  	move39();	  	//点标记移动
+				marker39.on('moving', function (e) {//设置点轨迹
+			  	polyline39.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "40"){
+		  		marker40.hide();
+		  		marker40 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "40号机飞行中"
+				  });
+		  		marker40.setMap(mapObj);
+		  		lineArr40.push(new AMap.LngLat(Glng, Glat));
+			  	polyline40.getPath(lineArr40);///获取变换后的坐标数组
+			  	move40();	  	//点标记移动
+				marker40.on('moving', function (e) {//设置点轨迹
+			  	polyline40.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "41"){
+		  		marker40.hide();
+		  		marker40 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "41号机飞行中"
+				  });
+		  		marker41.setMap(mapObj);
+		  		lineArr41.push(new AMap.LngLat(Glng, Glat));
+			  	polyline41.getPath(lineArr41);///获取变换后的坐标数组
+			  	move41();	  	//点标记移动
+				marker41.on('moving', function (e) {//设置点轨迹
+			  	polyline41.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "42"){
+		  		marker42.hide();
+		  		marker42 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "40号机飞行中"
+				  });
+		  		marker42.setMap(mapObj);
+		  		lineArr42.push(new AMap.LngLat(Glng, Glat));
+			  	polyline42.getPath(lineArr42);///获取变换后的坐标数组
+			  	move42();	  	//点标记移动
+				marker42.on('moving', function (e) {//设置点轨迹
+			  	polyline42.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "43"){
+		  		marker43.hide();
+		  		marker43 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "43号机飞行中"
+				  });
+		  		marker43.setMap(mapObj);
+		  		lineArr43.push(new AMap.LngLat(Glng, Glat));
+			  	polyline43.getPath(lineArr43);///获取变换后的坐标数组
+			  	move43();	  	//点标记移动
+				marker43.on('moving', function (e) {//设置点轨迹
+			  	polyline43.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "44"){
+		  		marker44.hide();
+		  		marker44 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "44号机飞行中"
+				  });
+		  		marker44.setMap(mapObj);
+		  		lineArr44.push(new AMap.LngLat(Glng, Glat));
+			  	polyline44.getPath(lineArr44);///获取变换后的坐标数组
+			  	move44();	  	//点标记移动
+				marker44.on('moving', function (e) {//设置点轨迹
+			  	polyline44.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "45"){
+		  		marker45.hide();
+		  		marker45 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "45号机飞行中"
+				  });
+		  		marker45.setMap(mapObj);
+		  		lineArr45.push(new AMap.LngLat(Glng, Glat));
+			  	polyline45.getPath(lineArr45);///获取变换后的坐标数组
+			  	move45();	  	//点标记移动
+				marker45.on('moving', function (e) {//设置点轨迹
+			  	polyline45.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "46"){
+		  		marker46.hide();
+		  		marker46 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "46号机飞行中"
+				  });
+		  		marker46.setMap(mapObj);
+		  		lineArr46.push(new AMap.LngLat(Glng, Glat));
+			  	polyline46.getPath(lineArr46);///获取变换后的坐标数组
+			  	move46();	  	//点标记移动
+				marker46.on('moving', function (e) {//设置点轨迹
+			  	polyline46.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "47"){
+		  		marker47.hide();
+		  		marker47 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "40号机飞行中"
+				  });
+		  		marker47.setMap(mapObj);
+		  		lineArr47.push(new AMap.LngLat(Glng, Glat));
+			  	polyline47.getPath(lineArr47);///获取变换后的坐标数组
+			  	move47();	  	//点标记移动
+				marker47.on('moving', function (e) {//设置点轨迹
+			  	polyline47.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "48"){
+		  		marker48.hide();
+		  		marker48 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "48号机飞行中"
+				  });
+		  		marker48.setMap(mapObj);
+		  		lineArr48.push(new AMap.LngLat(Glng, Glat));
+			  	polyline48.getPath(lineArr48);///获取变换后的坐标数组
+			  	move48();	  	//点标记移动
+				marker48.on('moving', function (e) {//设置点轨迹
+			  	polyline48.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "49"){
+		  		marker49.hide();
+		  		marker49 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "49号机飞行中"
+				  });
+		  		marker49.setMap(mapObj);
+		  		lineArr49.push(new AMap.LngLat(Glng, Glat));
+			  	polyline49.getPath(lineArr49);///获取变换后的坐标数组
+			  	move49();	  	//点标记移动
+				marker49.on('moving', function (e) {//设置点轨迹
+			  	polyline49.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "50"){
+		  		marker50.hide();
+		  		marker50 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "50号机飞行中"
+				  });
+		  		marker50.setMap(mapObj);
+		  		lineArr50.push(new AMap.LngLat(Glng, Glat));
+			  	polyline50.getPath(lineArr50);///获取变换后的坐标数组
+			  	move50();	  	//点标记移动
+				marker50.on('moving', function (e) {//设置点轨迹
+			  	polyline50.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "51"){
+		  		marker51.hide();
+		  		marker51 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "51号机飞行中"
+				  });
+		  		marker51.setMap(mapObj);
+		  		lineArr51.push(new AMap.LngLat(Glng, Glat));
+			  	polyline51.getPath(lineArr51);///获取变换后的坐标数组
+			  	move51();	  	//点标记移动
+				marker51.on('moving', function (e) {//设置点轨迹
+			  	polyline51.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "52"){
+		  		marker52.hide();
+		  		marker52 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "52号机飞行中"
+				  });
+		  		marker52.setMap(mapObj);
+		  		lineArr52.push(new AMap.LngLat(Glng, Glat));
+			  	polyline52.getPath(lineArr52);///获取变换后的坐标数组
+			  	move52();	  	//点标记移动
+				marker52.on('moving', function (e) {//设置点轨迹
+			  	polyline52.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "53"){
+		  		marker53.hide();
+		  		marker53 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "53号机飞行中"
+				  });
+		  		marker53.setMap(mapObj);
+		  		lineArr53.push(new AMap.LngLat(Glng, Glat));
+			  	polyline53.getPath(lineArr53);///获取变换后的坐标数组
+			  	move53();	  	//点标记移动
+				marker53.on('moving', function (e) {//设置点轨迹
+			  	polyline53.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "54"){
+		  		marker54.hide();
+		  		marker54 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "54号机飞行中"
+				  });
+		  		marker54.setMap(mapObj);
+		  		lineArr54.push(new AMap.LngLat(Glng, Glat));
+			  	polyline54.getPath(lineArr54);///获取变换后的坐标数组
+			  	move54();	  	//点标记移动
+				marker54.on('moving', function (e) {//设置点轨迹
+			  	polyline54.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "55"){
+		  		marker55.hide();
+		  		marker55 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "55号机飞行中"
+				  });
+		  		marker55.setMap(mapObj);
+		  		lineArr55.push(new AMap.LngLat(Glng, Glat));
+			  	polyline55.getPath(lineArr55);///获取变换后的坐标数组
+			  	move55();	  	//点标记移动
+				marker55.on('moving', function (e) {//设置点轨迹
+			  	polyline55.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "56"){
+		  		marker56.hide();
+		  		marker56 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "56号机飞行中"
+				  });
+		  		marker56.setMap(mapObj);
+		  		lineArr56.push(new AMap.LngLat(Glng, Glat));
+			  	polyline56.getPath(lineArr56);///获取变换后的坐标数组
+			  	move56();	  	//点标记移动
+				marker56.on('moving', function (e) {//设置点轨迹
+			  	polyline56.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "57"){
+		  		marker57.hide();
+		  		marker57 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "57号机飞行中"
+				  });
+		  		marker57.setMap(mapObj);
+		  		lineArr57.push(new AMap.LngLat(Glng, Glat));
+			  	polyline57.getPath(lineArr57);///获取变换后的坐标数组
+			  	move57();	  	//点标记移动
+				marker57.on('moving', function (e) {//设置点轨迹
+			  	polyline57.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "58"){
+		  		marker58.hide();
+		  		marker58 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "58号机飞行中"
+				  });
+		  		marker58.setMap(mapObj);
+		  		lineArr58.push(new AMap.LngLat(Glng, Glat));
+			  	polyline58.getPath(lineArr58);///获取变换后的坐标数组
+			  	move58();	  	//点标记移动
+				marker58.on('moving', function (e) {//设置点轨迹
+			  	polyline58.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "59"){
+		  		marker59.hide();
+		  		marker59 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "59号机飞行中"
+				  });
+		  		marker59.setMap(mapObj);
+		  		lineArr59.push(new AMap.LngLat(Glng, Glat));
+			  	polyline59.getPath(lineArr59);///获取变换后的坐标数组
+			  	move59();	  	//点标记移动
+				marker59.on('moving', function (e) {//设置点轨迹
+			  	polyline59.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "60"){
+		  		marker60.hide();
+		  		marker60 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "60号机飞行中"
+				  });
+		  		marker60.setMap(mapObj);
+		  		lineArr60.push(new AMap.LngLat(Glng, Glat));
+			  	polyline60.getPath(lineArr60);///获取变换后的坐标数组
+			  	move60();	  	//点标记移动
+				marker60.on('moving', function (e) {//设置点轨迹
+			  	polyline60.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "61"){
+		  		marker61.hide();
+		  		marker61 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "61号机飞行中"
+				  });
+		  		marker61.setMap(mapObj);
+		  		lineArr61.push(new AMap.LngLat(Glng, Glat));
+			  	polyline61.getPath(lineArr61);///获取变换后的坐标数组
+			  	move61();	  	//点标记移动
+				marker61.on('moving', function (e) {//设置点轨迹
+			  	polyline61.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "62"){
+		  		marker62.hide();
+		  		marker62 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "62号机飞行中"
+				  });
+		  		marker62.setMap(mapObj);
+		  		lineArr62.push(new AMap.LngLat(Glng, Glat));
+			  	polyline62.getPath(lineArr62);///获取变换后的坐标数组
+			  	move62();	  	//点标记移动
+				marker62.on('moving', function (e) {//设置点轨迹
+			  	polyline62.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "63"){
+		  		marker63.hide();
+		  		marker63 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "63号机飞行中"
+				  });
+		  		marker63.setMap(mapObj);
+		  		lineArr63.push(new AMap.LngLat(Glng, Glat));
+			  	polyline63.getPath(lineArr63);///获取变换后的坐标数组
+			  	move63();	  	//点标记移动
+				marker63.on('moving', function (e) {//设置点轨迹
+			  	polyline63.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "64"){
+		  		marker64.hide();
+		  		marker64 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "64号机飞行中"
+				  });
+		  		marker64.setMap(mapObj);
+		  		lineArr64.push(new AMap.LngLat(Glng, Glat));
+			  	polyline64.getPath(lineArr64);///获取变换后的坐标数组
+			  	move64();	  	//点标记移动
+				marker64.on('moving', function (e) {//设置点轨迹
+			  	polyline64.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "65"){
+		  		marker65.hide();
+		  		marker65 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "65号机飞行中"
+				  });
+		  		marker65.setMap(mapObj);
+		  		lineArr65.push(new AMap.LngLat(Glng, Glat));
+			  	polyline65.getPath(lineArr65);///获取变换后的坐标数组
+			  	move65();	  	//点标记移动
+				marker65.on('moving', function (e) {//设置点轨迹
+			  	polyline65.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "66"){
+		  		marker66.hide();
+		  		marker66 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "66号机飞行中"
+				  });
+		  		marker66.setMap(mapObj);
+		  		lineArr66.push(new AMap.LngLat(Glng, Glat));
+			  	polyline66.getPath(lineArr66);///获取变换后的坐标数组
+			  	move66();	  	//点标记移动
+				marker66.on('moving', function (e) {//设置点轨迹
+			  	polyline66.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "67"){
+		  		marker67.hide();
+		  		marker67 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "67号机飞行中"
+				  });
+		  		marker67.setMap(mapObj);
+		  		lineArr67.push(new AMap.LngLat(Glng, Glat));
+			  	polyline67.getPath(lineArr67);///获取变换后的坐标数组
+			  	move67();	  	//点标记移动
+				marker67.on('moving', function (e) {//设置点轨迹
+			  	polyline67.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "68"){
+		  		marker68.hide();
+		  		marker68 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "68号机飞行中"
+				  });
+		  		marker68.setMap(mapObj);
+		  		lineArr68.push(new AMap.LngLat(Glng, Glat));
+			  	polyline68.getPath(lineArr68);///获取变换后的坐标数组
+			  	move68();	  	//点标记移动
+				marker68.on('moving', function (e) {//设置点轨迹
+			  	polyline68.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "69"){
+		  		marker69.hide();
+		  		marker69 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "69号机飞行中"
+				  });
+		  		marker69.setMap(mapObj);
+		  		lineArr69.push(new AMap.LngLat(Glng, Glat));
+			  	polyline69.getPath(lineArr69);///获取变换后的坐标数组
+			  	move69();	  	//点标记移动
+				marker69.on('moving', function (e) {//设置点轨迹
+			  	polyline69.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "70"){
+		  		marker70.hide();
+		  		marker70 = new AMap.Marker({//飞机1点标记
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "70号机飞行中"
+				  });
+		  		marker70.setMap(mapObj);
+		  		lineArr70.push(new AMap.LngLat(Glng, Glat));
+			  	polyline70.getPath(lineArr70);///获取变换后的坐标数组
+			  	move70();	  	//点标记移动
+				marker70.on('moving', function (e) {//设置点轨迹
+			  	polyline70.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "71"){
+		  		marker71.hide();
+		  		marker71 = new AMap.Marker({//
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "71号机飞行中"
+				  });
+		  		marker71.setMap(mapObj);
+		  		lineArr71.push(new AMap.LngLat(Glng, Glat));
+			  	polyline71.getPath(lineArr71);///获取变换后的坐标数组
+			  	move71();	  	//点标记移动
+				marker71.on('moving', function (e) {//设置点轨迹
+			  	polyline71.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "72"){
+		  		marker72.hide();
+		  		marker72 = new AMap.Marker({//
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "72号机飞行中"
+				  });
+		  		marker72.setMap(mapObj);
+		  		lineArr72.push(new AMap.LngLat(Glng, Glat));
+			  	polyline72.getPath(lineArr72);///获取变换后的坐标数组
+			  	move72();	  	//点标记移动
+				marker72.on('moving', function (e) {//设置点轨迹
+			  	polyline72.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "73"){
+		  		marker73.hide();
+		  		marker73 = new AMap.Marker({//
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "73号机飞行中"
+				  });
+		  		marker73.setMap(mapObj);
+		  		lineArr73.push(new AMap.LngLat(Glng, Glat));
+			  	polyline73.getPath(lineArr73);///获取变换后的坐标数组
+			  	move73();	  	//点标记移动
+				marker73.on('moving', function (e) {//设置点轨迹
+			  	polyline73.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "74"){
+		  		marker74.hide();
+		  		marker74 = new AMap.Marker({//
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "74号机飞行中"
+				  });
+		  		marker74.setMap(mapObj);
+		  		lineArr74.push(new AMap.LngLat(Glng, Glat));
+			  	polyline74.getPath(lineArr74);///获取变换后的坐标数组
+			  	move74();	  	//点标记移动
+				marker74.on('moving', function (e) {//设置点轨迹
+			  	polyline74.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "75"){
+		  		marker75.hide();
+		  		marker75 = new AMap.Marker({//
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "75号机飞行中"
+				  });
+		  		marker75.setMap(mapObj);
+		  		lineArr75.push(new AMap.LngLat(Glng, Glat));
+			  	polyline75.getPath(lineArr75);///获取变换后的坐标数组
+			  	move75();	  	//点标记移动
+				marker75.on('moving', function (e) {//设置点轨迹
+			  	polyline75.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "76"){
+		  		marker76.hide();
+		  		marker76 = new AMap.Marker({//
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "76号机飞行中"
+				  });
+		  		marker76.setMap(mapObj);
+		  		lineArr76.push(new AMap.LngLat(Glng, Glat));
+			  	polyline76.getPath(lineArr76);///获取变换后的坐标数组
+			  	move76();	  	//点标记移动
+				marker76.on('moving', function (e) {//设置点轨迹
+			  	polyline76.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "77"){
+		  		marker77.hide();
+		  		marker77 = new AMap.Marker({//
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "77号机飞行中"
+				  });
+		  		marker77.setMap(mapObj);
+		  		lineArr77.push(new AMap.LngLat(Glng, Glat));
+			  	polyline77.getPath(lineArr77);///获取变换后的坐标数组
+			  	move77();	  	//点标记移动
+				marker77.on('moving', function (e) {//设置点轨迹
+			  	polyline77.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "78"){
+		  		marker78.hide();
+		  		marker78 = new AMap.Marker({//
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "78号机飞行中"
+				  });
+		  		marker78.setMap(mapObj);
+		  		lineArr78.push(new AMap.LngLat(Glng, Glat));
+			  	polyline78.getPath(lineArr78);///获取变换后的坐标数组
+			  	move78();	  	//点标记移动
+				marker78.on('moving', function (e) {//设置点轨迹
+			  	polyline78.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "79"){
+		  		marker79.hide();
+		  		marker79 = new AMap.Marker({//
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "79号机飞行中"
+				  });
+		  		marker79.setMap(mapObj);
+		  		lineArr79.push(new AMap.LngLat(Glng, Glat));
+			  	polyline79.getPath(lineArr79);///获取变换后的坐标数组
+			  	move79();	  	//点标记移动
+				marker79.on('moving', function (e) {//设置点轨迹
+			  	polyline79.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "80"){
+		  		marker80.hide();
+		  		marker80 = new AMap.Marker({//
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "80号机飞行中"
+				  });
+		  		marker80.setMap(mapObj);
+		  		lineArr80.push(new AMap.LngLat(Glng, Glat));
+			  	polyline80.getPath(lineArr80);///获取变换后的坐标数组
+			  	move80();	  	//点标记移动
+				marker80.on('moving', function (e) {//设置点轨迹
+			  	polyline80.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "81"){
+		  		marker81.hide();
+		  		marker81 = new AMap.Marker({//
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "81号机飞行中"
+				  });
+		  		marker81.setMap(mapObj);
+		  		lineArr81.push(new AMap.LngLat(Glng, Glat));
+			  	polyline81.getPath(lineArr81);///获取变换后的坐标数组
+			  	move81();	  	//点标记移动
+				marker81.on('moving', function (e) {//设置点轨迹
+			  	polyline81.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "82"){
+		  		marker82.hide();
+		  		marker82 = new AMap.Marker({//
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "82号机飞行中"
+				  });
+		  		marker82.setMap(mapObj);
+		  		lineArr82.push(new AMap.LngLat(Glng, Glat));
+			  	polyline82.getPath(lineArr82);///获取变换后的坐标数组
+			  	move82();	  	//点标记移动
+				marker82.on('moving', function (e) {//设置点轨迹
+			  	polyline82.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "83"){
+		  		marker83.hide();
+		  		marker83 = new AMap.Marker({//
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "83号机飞行中"
+				  });
+		  		marker83.setMap(mapObj);
+		  		lineArr83.push(new AMap.LngLat(Glng, Glat));
+			  	polyline83.getPath(lineArr83);///获取变换后的坐标数组
+			  	move83();	  	//点标记移动
+				marker83.on('moving', function (e) {//设置点轨迹
+			  	polyline83.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "84"){
+		  		marker84.hide();
+		  		marker84 = new AMap.Marker({//
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "84号机飞行中"
+				  });
+		  		marker84.setMap(mapObj);
+		  		lineArr84.push(new AMap.LngLat(Glng, Glat));
+			  	polyline84.getPath(lineArr84);///获取变换后的坐标数组
+			  	move84();	  	//点标记移动
+				marker84.on('moving', function (e) {//设置点轨迹
+			  	polyline84.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "85"){
+		  		marker85.hide();
+		  		marker85 = new AMap.Marker({//
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "85号机飞行中"
+				  });
+		  		marker85.setMap(mapObj);
+		  		lineArr85.push(new AMap.LngLat(Glng, Glat));
+			  	polyline85.getPath(lineArr85);///获取变换后的坐标数组
+			  	move85();	  	//点标记移动
+				marker85.on('moving', function (e) {//设置点轨迹
+			  	polyline85.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "86"){
+		  		marker86.hide();
+		  		marker86 = new AMap.Marker({//
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "86号机飞行中"
+				  });
+		  		marker86.setMap(mapObj);
+		  		lineArr86.push(new AMap.LngLat(Glng, Glat));
+			  	polyline86.getPath(lineArr86);///获取变换后的坐标数组
+			  	move86();	  	//点标记移动
+				marker86.on('moving', function (e) {//设置点轨迹
+			  	polyline86.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "87"){
+		  		marker87.hide();
+		  		marker87 = new AMap.Marker({//
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "87号机飞行中"
+				  });
+		  		marker87.setMap(mapObj);
+		  		lineArr87.push(new AMap.LngLat(Glng, Glat));
+			  	polyline87.getPath(lineArr87);///获取变换后的坐标数组
+			  	move87();	  	//点标记移动
+				marker87.on('moving', function (e) {//设置点轨迹
+			  	polyline87.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "88"){
+		  		marker88.hide();
+		  		marker88 = new AMap.Marker({//
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "88号机飞行中"
+				  });
+		  		marker88.setMap(mapObj);
+		  		lineArr88.push(new AMap.LngLat(Glng, Glat));
+			  	polyline88.getPath(lineArr88);///获取变换后的坐标数组
+			  	move88();	  	//点标记移动
+				marker88.on('moving', function (e) {//设置点轨迹
+			  	polyline88.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "89"){
+		  		marker89.hide();
+		  		marker89 = new AMap.Marker({//
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "89号机飞行中"
+				  });
+		  		marker89.setMap(mapObj);
+		  		lineArr89.push(new AMap.LngLat(Glng, Glat));
+			  	polyline89.getPath(lineArr89);///获取变换后的坐标数组
+			  	move89();	  	//点标记移动
+				marker89.on('moving', function (e) {//设置点轨迹
+			  	polyline89.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "90"){
+		  		marker90.hide();
+		  		marker90 = new AMap.Marker({//
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "90号机飞行中"
+				  });
+		  		marker90.setMap(mapObj);
+		  		lineArr90.push(new AMap.LngLat(Glng, Glat));
+			  	polyline90.getPath(lineArr90);///获取变换后的坐标数组
+			  	move90();	  	//点标记移动
+				marker90.on('moving', function (e) {//设置点轨迹
+			  	polyline90.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "91"){
+		  		marker91.hide();
+		  		marker91 = new AMap.Marker({//
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "91号机飞行中"
+				  });
+		  		marker91.setMap(mapObj);
+		  		lineArr91.push(new AMap.LngLat(Glng, Glat));
+			  	polyline91.getPath(lineArr91);///获取变换后的坐标数组
+			  	move91();	  	//点标记移动
+				marker91.on('moving', function (e) {//设置点轨迹
+			  	polyline91.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "92"){
+		  		marker92.hide();
+		  		marker92 = new AMap.Marker({//
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "92号机飞行中"
+				  });
+		  		marker92.setMap(mapObj);
+		  		lineArr92.push(new AMap.LngLat(Glng, Glat));
+			  	polyline92.getPath(lineArr92);///获取变换后的坐标数组
+			  	move92();	  	//点标记移动
+				marker92.on('moving', function (e) {//设置点轨迹
+			  	polyline92.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "93"){
+		  		marker93.hide();
+		  		marker93 = new AMap.Marker({//
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "93号机飞行中"
+				  });
+		  		marker93.setMap(mapObj);
+		  		lineArr93.push(new AMap.LngLat(Glng, Glat));
+			  	polyline93.getPath(lineArr93);///获取变换后的坐标数组
+			  	move93();	  	//点标记移动
+				marker93.on('moving', function (e) {//设置点轨迹
+			  	polyline93.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "94"){
+		  		marker94.hide();
+		  		marker94 = new AMap.Marker({//
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "94号机飞行中"
+				  });
+		  		marker94.setMap(mapObj);
+		  		lineArr94.push(new AMap.LngLat(Glng, Glat));
+			  	polyline94.getPath(lineArr94);///获取变换后的坐标数组
+			  	move94();	  	//点标记移动
+				marker94.on('moving', function (e) {//设置点轨迹
+			  	polyline94.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "95"){
+		  		marker95.hide();
+		  		marker95 = new AMap.Marker({//
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "95号机飞行中"
+				  });
+		  		marker95.setMap(mapObj);
+		  		lineArr95.push(new AMap.LngLat(Glng, Glat));
+			  	polyline95.getPath(lineArr95);///获取变换后的坐标数组
+			  	move95();	  	//点标记移动
+				marker95.on('moving', function (e) {//设置点轨迹
+			  	polyline95.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "96"){
+		  		marker96.hide();
+		  		marker96 = new AMap.Marker({//
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "96号机飞行中"
+				  });
+		  		marker96.setMap(mapObj);
+		  		lineArr96.push(new AMap.LngLat(Glng, Glat));
+			  	polyline96.getPath(lineArr96);///获取变换后的坐标数组
+			  	move96();	  	//点标记移动
+				marker96.on('moving', function (e) {//设置点轨迹
+			  	polyline96.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "97"){
+		  		marker97.hide();
+		  		marker97 = new AMap.Marker({//
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "97号机飞行中"
+				  });
+		  		marker97.setMap(mapObj);
+		  		lineArr97.push(new AMap.LngLat(Glng, Glat));
+			  	polyline97.getPath(lineArr97);///获取变换后的坐标数组
+			  	move97();	  	//点标记移动
+				marker97.on('moving', function (e) {//设置点轨迹
+			  	polyline97.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "98"){
+		  		marker98.hide();
+		  		marker98 = new AMap.Marker({//
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "98号机飞行中"
+				  });
+		  		marker98.setMap(mapObj);
+		  		lineArr98.push(new AMap.LngLat(Glng, Glat));
+			  	polyline98.getPath(lineArr98);///获取变换后的坐标数组
+			  	move98();	  	//点标记移动
+				marker98.on('moving', function (e) {//设置点轨迹
+			  	polyline98.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "99"){
+		  		marker99.hide();
+		  		marker99 = new AMap.Marker({//
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "99号机飞行中"
+				  });
+		  		marker99.setMap(mapObj);
+		  		lineArr99.push(new AMap.LngLat(Glng, Glat));
+			  	polyline99.getPath(lineArr99);///获取变换后的坐标数组
+			  	move99();	  	//点标记移动
+				marker99.on('moving', function (e) {//设置点轨迹
+			  	polyline99.setPath(e.passedPath);
+				});
+		  	}
+		  	if(XY.ID == "100"){
+		  		marker100.hide();
+		  		marker100 = new AMap.Marker({//
+				      position: [Glng, Glat],//终点
+				      icon: "./image/p1.png",
+				      offset: new AMap.Pixel(-16, -18),
+				      autoRotation: true,
+				      title: "100号机飞行中"
+				  });
+		  		marker100.setMap(mapObj);
+		  		lineArr100.push(new AMap.LngLat(Glng, Glat));
+			  	polyline100.getPath(lineArr100);///获取变换后的坐标数组
+			  	move100();	  	//点标记移动
+				marker100.on('moving', function (e) {//设置点轨迹
+			  	polyline100.setPath(e.passedPath);
+				});
+		  	}
+		}
+	}, 1500); // 1000表示1500毫秒， 即每隔1.5秒执行一次
+
+});
+
+//===================================================================================================================
+  <!--输入关键字查询地点-->
+  function autocomplete_CallBack(data) {
+      var resultStr = "";
+      var tipArr = data.tips;
+      if (tipArr&&tipArr.length>0) {
+          for (var i = 0; i < tipArr.length; i++) {
+              resultStr += "<div id='divid" + (i + 1) + "' onmouseover='openMarkerTipById(" + (i + 1)
+                  + ",this)' onclick='selectResult(" + i + ")' onmouseout='onmouseout_MarkerStyle(" + (i + 1)
+                  + ",this)' style=\"font-size: 13px;cursor:pointer;padding:5px 5px 5px 5px;\"" + "data=" + tipArr[i].adcode + ">" + tipArr[i].name + "<span style='color:#C1C1C1;'>"+ tipArr[i].district + "</span></div>";
+          }
+      }
+      else  {
+      	resultStr = " π__π 亲,人家找不到结果!<br />要不试试：<br />1.请确保所有字词拼写正确<br />2.尝试不同的关键字<br />3.尝试更宽泛的关键字";
+      }
+      document.getElementById("result1").curSelect = -1;
+      document.getElementById("result1").tipArr = tipArr;
+      document.getElementById("result1").innerHTML = resultStr;
+      document.getElementById("result1").style.display = "block";
+  }
+
+  //
+  function openMarkerTipById(pointid, thiss) {  //
+      thiss.style.background = '#CAE1FF';
+  }
+
+  //
+  function onmouseout_MarkerStyle(pointid, thiss) {  //é
+      thiss.style.background = "";
+  }
+
+  //
+  function selectResult(index) {
+      if(index<0){
+          return;
+      }
+      if (navigator.userAgent.indexOf("MSIE") > 0) {
+          document.getElementById("keyword").onpropertychange = null;
+          document.getElementById("keyword").onfocus = focus_callback;
+      }
+      //
+      var text = document.getElementById("divid" + (index + 1)).innerHTML.replace(/<[^>].*?>.*<\/[^>].*?>/g,"");
+      var cityCode = document.getElementById("divid" + (index + 1)).getAttribute('data');
+      document.getElementById("keyword").value = text;
+      document.getElementById("result1").style.display = "none";
+      //
+      mapObj.plugin(["AMap.PlaceSearch"], function() {
+          var msearch = new AMap.PlaceSearch();  //
+          AMap.event.addListener(msearch, "complete", placeSearch_CallBack); //
+          msearch.setCity(cityCode);
+          msearch.search(text);  //
+      });
+  }
+
+  //
+  function focus_callback() {
+      if (navigator.userAgent.indexOf("MSIE") > 0) {
+          document.getElementById("keyword").onpropertychange = autoSearch;
+      }
+  }
+
+  //
+  function placeSearch_CallBack(data) {
+      //
+      windowsArr = [];
+      marker     = [];
+      mapObj.clearMap();
+      var resultStr1 = "";
+      var poiArr = data.poiList.pois;
+      var resultCount = poiArr.length;
+      for (var i = 0; i < resultCount; i++) {
+          resultStr1 += "<div id='divid" + (i + 1) + "' onmouseover='openMarkerTipById1(" + i + ",this)' onmouseout='onmouseout_MarkerStyle(" + (i + 1) + ",this)' style=\"font-size: 12px;cursor:pointer;padding:0px 0 4px 2px; border-bottom:1px solid #C1FFC1;\"><table><tr><td><img src=\"http://webapi.amap.com/images/" + (i + 1) + ".png\"></td>" + "<td><h3><font color=\"#00a6ac\">åç§°: " + poiArr[i].name + "</font></h3>";
+          resultStr1 += TipContents(poiArr[i].type, poiArr[i].address, poiArr[i].tel) + "</td></tr></table></div>";
+          addmarker(i, poiArr[i]);
+      }
+      mapObj.setFitView();
+  }
+
+  //
+  function openMarkerTipById1(pointid, thiss) {
+      thiss.style.background = '#CAE1FF';
+      windowsArr[pointid].open(mapObj, marker[pointid]);
+  }
+
+  //
+  function addmarker(i, d) {
+      var lngX = d.location.getLng();
+      var latY = d.location.getLat();
+      var markerOption = {
+          map:mapObj,
+          //offset:Pixel(-10,-34),
+          position:new AMap.LngLat(lngX, latY)
+      };
+      var mar = new AMap.Marker(markerOption);
+      marker.push(new AMap.LngLat(lngX, latY));
+
+      var infoWindow = new AMap.InfoWindow({
+          content:"<h3><font color=\"#00a6ac\">  " + (i + 1) + ". " + d.name + "</font></h3>" + TipContents(d.type, d.address, d.tel),
+          size:new AMap.Size(300, 0),
+          autoMove:true,
+          offset:new AMap.Pixel(0,-30)
+      });
+      windowsArr.push(infoWindow);
+      var aa = function (e) {
+          var nowPosition = mar.getPosition(),
+              lng_str = nowPosition.lng,
+              lat_str = nowPosition.lat;
+          infoWindow.open(mapObj, nowPosition);
+          document.getElementById("lngX").value = lng_str;
+          document.getElementById("latY").value = lat_str;
+      };
+      AMap.event.addListener(mar, "mouseover", aa);
+  }
+
+//infowindow显示内容
+  function TipContents(type, address, tel) {  //窗体内容
+      if (type == "" || type == "undefined" || type == null || type == " undefined" || typeof type == "undefined") {
+          type = "暂无";
+      }
+      if (address == "" || address == "undefined" || address == null || address == " undefined" || typeof address == "undefined") {
+          address = "暂无";
+      }
+      if (tel == "" || tel == "undefined" || tel == null || tel == " undefined" || typeof address == "tel") {
+          tel = "暂无";
+      }
+      var str = "  地址：" + address + "<br />  电话：" + tel + " <br />  类型：" + type;
+      return str;
+  }
+  function keydown(event){
+      var key = (event||window.event).keyCode;
+      var result = document.getElementById("result1")
+      var cur = result.curSelect;
+      if(key===40){//down
+          if(cur + 1 < result.childNodes.length){
+              if(result.childNodes[cur]){
+                  result.childNodes[cur].style.background='';
+              }
+              result.curSelect=cur+1;
+              result.childNodes[cur+1].style.background='#CAE1FF';
+              document.getElementById("keyword").value = result.tipArr[cur+1].name;
+          }
+      }else if(key===38){//up
+          if(cur-1>=0){
+              if(result.childNodes[cur]){
+                  result.childNodes[cur].style.background='';
+              }
+              result.curSelect=cur-1;
+              result.childNodes[cur-1].style.background='#CAE1FF';
+              document.getElementById("keyword").value = result.tipArr[cur-1].name;
+          }
+      }else if(key === 13){
+          var res = document.getElementById("result1");
+          if(res && res['curSelect'] !== -1){
+              selectResult(document.getElementById("result1").curSelect);
+          }
+      }else{
+          autoSearch();
+      }
+  }
+  //============================================================================================================
+  <!--鼠标坐标获取-->
+  var clickEventListener=AMap.event.addListener(mapObj,'click',function(e){
+      document.getElementById("lngX").value=e.lnglat.getLng();
+      document.getElementById("latY").value=e.lnglat.getLat();
+  });
+
+ // document.getElementById("keyword").onkeyup = keydown;
+
+  function autoSearch() {
+     // var keywords = document.getElementById("keyword").value;
+      var auto;
+      //
+      AMap.service(["AMap.Autocomplete"], function() {
+          var autoOptions = {
+              city: "" //
+          };
+          auto = new AMap.Autocomplete(autoOptions);
+          //
+          if ( keywords.length > 0) {
+              auto.search(keywords, function(status, result){
+                  autocomplete_CallBack(result);
+              });
+          }
+          else {
+              document.getElementById("result1").style.display = "none";
+          }
+      });
+  }
+//===================================================================================================================
+	 
+//=========================================================================
+
+    function toggleScale(checkbox) {
+        if (checkbox.checked) {
+            scale.show();
+        } else {
+            scale.hide();
+        }
+    }
+    function toggleToolBar(checkbox) {
+        if (checkbox.checked) {
+            showToolBar();
+            showToolBarDirection();
+            showToolBarRuler();
+        } else {
+            hideToolBar();
+            hideToolBarDirection();
+            hideToolBarRuler();
+        }
+    }
+    function toggleToolBarDirection(checkbox) {
+        if (checkbox.checked) {
+            toolBar.showDirection()
+        } else {
+            toolBar.hideDirection()
+        }
+    }
+    function toggleToolBarRuler(checkbox) {
+        if (checkbox.checked) {
+            toolBar.showRuler();
+        } else {
+            toolBar.hideRuler();
+        }
+    }
+    function toggleOverViewShow(checkbox) {
+        if (checkbox.checked) {
+            overView.show();
+            document.getElementById('overviewOpen').disabled = false;
+        } else {
+            overView.hide();
+            document.getElementById('overviewOpen').disabled = true;
+        }
+    }
+    function toggleOverViewOpen(checkbox) {
+        if (checkbox.checked) {
+            overView.open();
+        }
+        else {
+            overView.close();
+        }
+    }
+    function showToolBar() {
+        document.getElementById('toolbar').checked = true;
+        document.getElementById('toolbarDirection').disabled = false;
+        document.getElementById('toolbarRuler').disabled = false;
+        toolBar.show();
+    }
+    function hideToolBar() {
+        document.getElementById('toolbar').checked = false;
+        document.getElementById('toolbarDirection').disabled = true;
+        document.getElementById('toolbarRuler').disabled = true;
+        toolBar.hide();
+    }
+    function showToolBarDirection() {
+        document.getElementById('toolbarDirection').checked = true;
+        toolBar.showDirection();
+    }
+    function hideToolBarDirection() {
+        document.getElementById('toolbarDirection').checked = false;
+        toolBar.hideDirection();
+    }
+    function showToolBarRuler() {
+        document.getElementById('toolbarRuler').checked = true;
+        toolBar.showRuler();
+    }
+    function hideToolBarRuler() {
+        document.getElementById('toolbarRuler').checked = false;
+        toolBar.hideRuler();
+    }
+
+</script>
+</body>
+</html>
