@@ -3,7 +3,6 @@ package com.whonor.Tread;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
-
 import javax.websocket.Session;
 
 import com.whonor.data.AlarmMessage;
@@ -43,13 +42,16 @@ public class OneThread extends Thread {
             if (list != null && currentIndex < list.size()) {
                 for (int i = currentIndex; i < list.size(); i++) {
                     try {
-                    	 session.getBasicRemote().sendText(
-                    			"{\"Type\":"+list.get(i).getType()
-                    			+",\"ID\":"+list.get(i).getID()
-                    			+",\"lng\":"+list.get(i).getLng()
-                                +",\"lat\":"+list.get(i).getLat()
-                                +"}"
-                               );
+                    	 if(session.isOpen()){//检查seesion会话是否连接
+                    		 session.getBasicRemote().sendText(
+                         			"{\"Type\":"+list.get(i).getType()
+                         			+",\"ID\":"+list.get(i).getID()
+                         			+",\"lng\":"+list.get(i).getLng()
+                                     +",\"lat\":"+list.get(i).getLat()
+                                     +"}"
+                                    );
+                    	 }
+                    	 
                        //session.getBasicRemote().sendObject(list.get(i)); //No encoder specified for object of class [class AlarmMessage]
                     } catch (IOException e) {
                         e.printStackTrace();
