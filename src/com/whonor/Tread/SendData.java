@@ -13,11 +13,11 @@ import javax.websocket.server.ServerEndpoint;
 
 //该注解用来指定一个URI，客户端可以通过这个URI来连接到WebSocket。
 //类似Servlet的注解mapping。无需在web.xml中配置
-//服务器注解端点
-@ServerEndpoint("/SendData")
+//服务器注解端点TCP
+@ServerEndpoint("/SendData")//该类的功能是将服务器后台数据发送到网页上
 public class SendData {
 	
-	String ip = "192.168.1.103";//连接TCP服务器IP地址
+	String ip = "192.168.1.110";//TCP服务器地址
 	int port = 8888;
 	
 	@OnOpen
