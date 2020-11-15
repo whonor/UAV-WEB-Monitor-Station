@@ -4,9 +4,7 @@
 
 前端可实时显示被监控设备的各项指定参数，程序调用了高德地图API的多项功能，用户完全可以像用普通高德地图一样使用该平台。
 
-该平台目前只是处于对无人机实时飞行状态的监控阶段。如图所示，
-
-![Index.png](https://upload-images.jianshu.io/upload_images/2101095-2e61d684272a99fd.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+该平台目前只是处于对无人机实时飞行状态的监控阶段。
 
 
 首先介绍一下运行平台：
@@ -64,6 +62,3 @@ ws的出现打破了HTTP协议的壁垒，并且丰富了网络服务器的交�
 将项目部署到服务器上，在浏览器输入正确网址“http://localhost:8080/WebSocketDemo/”，即可进入系统。
 
 
-关注公众号HonorWang，回复"无人机网页地面站"，即可获得源码。
-
-![qrcode_for_gh_e20642ac17a9_258.jpg](https://upload-images.jianshu.io/upload_images/2101095-d9e9eb23a634cec6.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
